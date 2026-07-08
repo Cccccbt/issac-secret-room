@@ -340,18 +340,24 @@ function allDeadEndCandidates(distances) {
   return candidates;
 }
 
-function scoreSuper(deadEnd) {
+function scoreSuper(deadEnd, context) {
   if (!deadEnd.isSuperLegal) return null;
   const distance = deadEnd.distance;
+  if (context.lunaMode && (deadEnd.deadEndRank <= 1 || deadEnd.deadEndRank >= 4)) {
+    return null;
+  }
+  const lunaSlot = context.lunaMode ? deadEnd.deadEndRank - 1 : null;
   return {
     x: deadEnd.x,
     y: deadEnd.y,
     sortValue: distance == null ? -1 : distance,
-    gridMark: distance == null ? `D?/#${deadEnd.deadEndRank}` : `D${distance}/#${deadEnd.deadEndRank}`,
+    gridMark: distance == null
+      ? context.lunaMode ? `D?/#${deadEnd.deadEndRank}/L${lunaSlot}` : `D?/#${deadEnd.deadEndRank}`
+      : context.lunaMode ? `D${distance}/#${deadEnd.deadEndRank}/L${lunaSlot}` : `D${distance}/#${deadEnd.deadEndRank}`,
     text: distance == null
-      ? `死路序号 #${deadEnd.deadEndRank}，距离未知`
-      : `死路序号 #${deadEnd.deadEndRank}，到出生房距离 ${distance}`,
-    detail: `挂在 ${coordName(deadEnd.anchor.x, deadEnd.anchor.y)}(${labelFor(deadEnd.anchor.cell.type)})；超隐只把普通房当合法锚点，窄/小房请用堵墙表达无效门位`,
+      ? `死路序号 #${deadEnd.deadEndRank}，距离未知${context.lunaMode ? `，Luna 槽位 L${lunaSlot}` : ""}`
+      : `死路序号 #${deadEnd.deadEndRank}，到出生房距离 ${distance}${context.lunaMode ? `，Luna 槽位 L${lunaSlot}` : ""}`,
+    detail: `挂在 ${coordName(deadEnd.anchor.x, deadEnd.anchor.y)}(${labelFor(deadEnd.anchor.cell.type)})；${context.lunaMode ? "Luna 取第 1 远和第 4 远之间的死路，也就是 #2/#3；" : ""}超隐只把普通房当合法锚点，窄/小房请用堵墙表达无效门位`,
   };
 }
 
@@ -366,9 +372,18 @@ function redRoomValid(x, y, fromUltraDir) {
   return adj.length > 0;
 }
 
+function touchesBlockedRedRoomSlot(x, y) {
+  return dirs.some((dir) => {
+    const rx = x + dir.dx;
+    const ry = y + dir.dy;
+    return inBounds(rx, ry) && !isRoom(getCell(rx, ry)) && blockedByAnyRoomWall(rx, ry);
+  });
+}
+
 function scoreUltra(x, y) {
   if (isRoom(getCell(x, y))) return null;
   if (touchesAnyRoom(x, y)) return null;
+  if (touchesBlockedRedRoomSlot(x, y)) return null;
 
   const links = [];
   const touchedRooms = new Set();
@@ -410,6 +425,7 @@ function allEmptyPositions() {
 function analyze() {
   const distances = distanceMapFromStart();
   const deadEnds = allDeadEndCandidates(distances);
+  const lunaMode = document.getElementById("lunaMode").checked;
   const secret = [];
   const superSecret = [];
   const ultra = [];
@@ -422,15 +438,17 @@ function analyze() {
   }
 
   for (const deadEnd of deadEnds) {
-    const ss = scoreSuper(deadEnd);
+    const ss = scoreSuper(deadEnd, { lunaMode });
     if (ss) superSecret.push(ss);
   }
 
   const byMetric = (items) => items.sort((a, b) => b.sortValue - a.sortValue);
+  const sortedSuper = byMetric(superSecret);
   renderResults({
     secret: byMetric(filterDominatedSecrets(secret)),
-    superSecret: byMetric(superSecret),
+    superSecret: sortedSuper,
     ultra: byMetric(ultra),
+    lunaMode,
   });
 }
 
@@ -440,7 +458,7 @@ function renderResults(groups) {
   const compactMode = document.getElementById("compactMode").checked;
   const config = [
     ["secret", "隐藏房可能胜出的权重范围", "secret"],
-    ["superSecret", "超隐死路排序", "super"],
+    ["superSecret", groups.lunaMode ? "Luna 超隐死路排序" : "超隐死路排序", "super"],
     ["ultra", "红隐连接级别", "ultra"],
   ];
   let total = 0;
@@ -1004,6 +1022,9 @@ function setupTools() {
   document.getElementById("compactMode").addEventListener("change", () => {
     if (resultLists.children.length) analyze();
     else renderGrid();
+  });
+  document.getElementById("lunaMode").addEventListener("change", () => {
+    if (resultLists.children.length) analyze();
   });
   document.getElementById("resetBtn").addEventListener("click", () => {
     pushHistory();
