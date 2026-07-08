@@ -11,6 +11,7 @@ const dirs = [
 const roomTypes = [
   { id: "start", name: "出生房", short: "生", category: "start" },
   { id: "normal", name: "普通", short: "普", category: "normal" },
+  { id: "shop", name: "商店", short: "店", category: "shop" },
   { id: "special", name: "特殊房", short: "特", category: "special" },
   { id: "miniboss", name: "小Boss", short: "小", category: "miniboss" },
   { id: "curse", name: "诅咒房", short: "咒", category: "curse" },
@@ -270,6 +271,17 @@ function distanceMapFromStart() {
   return distances;
 }
 
+function nearestShopDistance(distances) {
+  let best = null;
+  for (const group of roomGroups().values()) {
+    if (!group.cells.some(({ cell }) => cell.type === "shop")) continue;
+    const distance = distances.get(group.id);
+    if (distance == null) continue;
+    best = best == null ? distance : Math.min(best, distance);
+  }
+  return best;
+}
+
 function blockedReasonForSecret(x, y) {
   if (isRoom(getCell(x, y))) return "已有房间";
   if (blockedByAnyRoomWall(x, y)) return "贴着堵墙边";
@@ -340,9 +352,17 @@ function allDeadEndCandidates(distances) {
   return candidates;
 }
 
-function scoreSuper(deadEnd) {
+function scoreSuper(deadEnd, context) {
   if (!deadEnd.isSuperLegal) return null;
   const distance = deadEnd.distance;
+  if (
+    context.lunaMode &&
+    context.shopDistance != null &&
+    distance != null &&
+    distance < context.shopDistance
+  ) {
+    return null;
+  }
   return {
     x: deadEnd.x,
     y: deadEnd.y,
@@ -353,6 +373,28 @@ function scoreSuper(deadEnd) {
       : `死路序号 #${deadEnd.deadEndRank}，到出生房距离 ${distance}`,
     detail: `挂在 ${coordName(deadEnd.anchor.x, deadEnd.anchor.y)}(${labelFor(deadEnd.anchor.cell.type)})；超隐只把普通房当合法锚点，窄/小房请用堵墙表达无效门位`,
   };
+}
+
+function markSuperSlots(items, lunaMode, shopDistance) {
+  const slotCount = lunaMode ? 2 : 1;
+  return items.map((item, index) => {
+    if (index >= slotCount) {
+      return {
+        ...item,
+        detail: `${item.detail}${lunaMode ? "；Luna 开启时前两个合法死路是两个超隐槽位" : ""}`,
+      };
+    }
+    const slotLabel = lunaMode ? `L${index + 1}` : "超隐槽位";
+    const shopNote = lunaMode && shopDistance != null
+      ? `；已知商店按第 4 远参考，商店距离 D${shopDistance}`
+      : "";
+    return {
+      ...item,
+      gridMark: lunaMode ? `${item.gridMark}/${slotLabel}` : item.gridMark,
+      text: lunaMode ? `${item.text}，Luna 超隐槽位 ${index + 1}` : `${item.text}，最优超隐槽位`,
+      detail: `${item.detail}；${slotLabel}${shopNote}`,
+    };
+  });
 }
 
 function redRoomValid(x, y, fromUltraDir) {
@@ -418,7 +460,9 @@ function allEmptyPositions() {
 
 function analyze() {
   const distances = distanceMapFromStart();
+  const shopDistance = nearestShopDistance(distances);
   const deadEnds = allDeadEndCandidates(distances);
+  const lunaMode = document.getElementById("lunaMode").checked;
   const secret = [];
   const superSecret = [];
   const ultra = [];
@@ -431,15 +475,17 @@ function analyze() {
   }
 
   for (const deadEnd of deadEnds) {
-    const ss = scoreSuper(deadEnd);
+    const ss = scoreSuper(deadEnd, { lunaMode, shopDistance });
     if (ss) superSecret.push(ss);
   }
 
   const byMetric = (items) => items.sort((a, b) => b.sortValue - a.sortValue);
+  const sortedSuper = byMetric(superSecret);
   renderResults({
     secret: byMetric(filterDominatedSecrets(secret)),
-    superSecret: byMetric(superSecret),
+    superSecret: markSuperSlots(sortedSuper, lunaMode, shopDistance),
     ultra: byMetric(ultra),
+    lunaMode,
   });
 }
 
@@ -449,7 +495,7 @@ function renderResults(groups) {
   const compactMode = document.getElementById("compactMode").checked;
   const config = [
     ["secret", "隐藏房可能胜出的权重范围", "secret"],
-    ["superSecret", "超隐死路排序", "super"],
+    ["superSecret", groups.lunaMode ? "Luna 超隐死路排序" : "超隐死路排序", "super"],
     ["ultra", "红隐连接级别", "ultra"],
   ];
   let total = 0;
@@ -1013,6 +1059,9 @@ function setupTools() {
   document.getElementById("compactMode").addEventListener("change", () => {
     if (resultLists.children.length) analyze();
     else renderGrid();
+  });
+  document.getElementById("lunaMode").addEventListener("change", () => {
+    if (resultLists.children.length) analyze();
   });
   document.getElementById("resetBtn").addEventListener("click", () => {
     pushHistory();

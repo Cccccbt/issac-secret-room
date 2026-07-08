@@ -10,6 +10,7 @@
   --empty: #ebe4d7;
   --start: #f0efe8;
   --normal: #c5b89b;
+  --shop: #76a66a;
   --special: #d8b457;
   --miniboss: #c86a43;
   --boss: #b74c4c;
@@ -156,6 +157,7 @@ p { color: var(--muted); line-height: 1.5; }
 
 .cell.start { background: var(--start); }
 .cell.normal { background: var(--normal); }
+.cell.shop { background: var(--shop); }
 .cell.special { background: var(--special); }
 .cell.miniboss { background: var(--miniboss); }
 .cell.boss { background: var(--boss); }
@@ -165,6 +167,7 @@ p { color: var(--muted); line-height: 1.5; }
 
 .chip.start { background: var(--start); }
 .chip.normal { background: var(--normal); }
+.chip.shop { background: var(--shop); }
 .chip.special { background: var(--special); }
 .chip.miniboss { background: var(--miniboss); }
 .chip.boss { background: var(--boss); }
