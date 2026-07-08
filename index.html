@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>以撒隐藏房判断工具</title>
-  <link rel="stylesheet" href="styles.css?v=20260708-secret-dominated">
+  <link rel="stylesheet" href="styles.css?v=20260708-luna-deadend-ranks">
 </head>
 <body>
   <main class="app">
@@ -61,6 +61,7 @@
         <h2>选项</h2>
         <label><input type="checkbox" id="strictSpecial" checked> 隐藏房不贴 Boss/已知隐藏/已知超隐</label>
         <label><input type="checkbox" id="useBlocked" checked> 分析时考虑堵墙</label>
+        <label><input type="checkbox" id="lunaMode"> 有 Luna：超隐取 #2/#3 死路</label>
         <label><input type="checkbox" id="voidMode"> Void 层：红房可贴 Boss</label>
         <label><input type="checkbox" id="compactMode"> 省略模式：不显示权重/距离/分数</label>
       </section>
@@ -75,6 +76,7 @@
         <h2>机制速记</h2>
         <p>W 表示隐藏房候选权重范围：基础 10-14；2 邻接扣 3；1 邻接扣 6。</p>
         <p>D/# 表示超隐死路：D 是到出生房距离，# 是死路队列序号。</p>
+        <p>Luna 开启时会标出两个超隐槽位 L1/L2：从死路队列里取第 1 远和第 4 远之间的死路，也就是 #2/#3。</p>
         <p>R 表示红隐候选通过相邻红房能连接到的非红房数量；3+ 优先于 2，2 优先于 1。</p>
         <p>特殊房代表商店、道具房、图书馆、献祭、骰子、街机/宝库、挑战、星象、卧室等：普通隐藏房和红隐计入，超隐不计入。</p>
         <p>小Boss 通常可参与普通隐藏房和红隐，但不参与超隐；诅咒房参与普通隐藏房，但红隐排除。</p>
@@ -89,6 +91,6 @@
     </article>
   </template>
 
-  <script src="app.js?v=20260708-secret-dominated"></script>
+  <script src="app.js?v=20260708-luna-deadend-ranks"></script>
 </body>
 </html>
