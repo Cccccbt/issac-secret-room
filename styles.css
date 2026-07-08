@@ -202,11 +202,11 @@ p { color: var(--muted); line-height: 1.5; }
 .candidate-tag.cand-secret { background: var(--secret); }
 .candidate-tag.cand-super { background: var(--super); }
 .candidate-tag.cand-ultra { background: var(--ultra); }
-.candidate-tag.depth-1 { filter: saturate(.75) brightness(1.35); }
-.candidate-tag.depth-2 { filter: saturate(.85) brightness(1.18); }
+.candidate-tag.depth-1 { filter: saturate(.75) brightness(.68); }
+.candidate-tag.depth-2 { filter: saturate(.85) brightness(.82); }
 .candidate-tag.depth-3 { filter: saturate(1) brightness(1); }
-.candidate-tag.depth-4 { filter: saturate(1.15) brightness(.86); }
-.candidate-tag.depth-5 { filter: saturate(1.3) brightness(.72); }
+.candidate-tag.depth-4 { filter: saturate(1.15) brightness(1.18); }
+.candidate-tag.depth-5 { filter: saturate(1.3) brightness(1.35); }
 
 .cell.room[data-group] {
   box-shadow:
