@@ -193,6 +193,26 @@ function adjacentRooms(x, y, filter = () => true) {
   return [...byGroup.values()];
 }
 
+function blockedByAnyRoomWall(x, y) {
+  if (!document.getElementById("useBlocked").checked) return false;
+  return dirs.some((dir) => {
+    const nx = x + dir.dx;
+    const ny = y + dir.dy;
+    const cell = getCell(nx, ny);
+    if (!inBounds(nx, ny) || !isRoom(cell)) return false;
+    const back = { ...dir, dx: -dir.dx, dy: -dir.dy, key: dir.opposite, opposite: dir.key };
+    return !passableBetween(nx, ny, back);
+  });
+}
+
+function touchesAnyRoom(x, y) {
+  return dirs.some((dir) => {
+    const nx = x + dir.dx;
+    const ny = y + dir.dy;
+    return inBounds(nx, ny) && isRoom(getCell(nx, ny));
+  });
+}
+
 function roomGroups() {
   const groups = new Map();
   for (const [key, cell] of state.cells) {
@@ -252,6 +272,7 @@ function distanceMapFromStart() {
 
 function blockedReasonForSecret(x, y) {
   if (isRoom(getCell(x, y))) return "已有房间";
+  if (blockedByAnyRoomWall(x, y)) return "贴着堵墙边";
   if (document.getElementById("strictSpecial").checked) {
     const bad = adjacentRooms(x, y, (cell) => ["boss", "secret", "super"].includes(cell.type));
     if (bad.length) return "贴近 Boss/已知隐藏";
@@ -274,6 +295,8 @@ function scoreSecret(x, y) {
   return {
     x,
     y,
+    minWeight: range.min,
+    maxWeight: range.max,
     sortValue: range.max * 100 + adj.length,
     gridMark: `W${range.min}-${range.max}`,
     text: `权重 ${range.min}-${range.max}，邻接 ${adj.length} 个房间`,
@@ -281,10 +304,17 @@ function scoreSecret(x, y) {
   };
 }
 
+function filterDominatedSecrets(candidates) {
+  if (!candidates.length) return candidates;
+  const bestLowerBound = Math.max(...candidates.map((item) => item.minWeight));
+  return candidates.filter((item) => item.maxWeight >= bestLowerBound);
+}
+
 function allDeadEndCandidates(distances) {
   const candidates = [];
   for (const { x, y } of allEmptyPositions()) {
     if (x === 0 || y === 0 || x === SIZE - 1 || y === SIZE - 1) continue;
+    if (blockedByAnyRoomWall(x, y)) continue;
     const adj = adjacentRooms(x, y);
     if (adj.length !== 1) continue;
     const anchor = adj[0];
@@ -327,6 +357,7 @@ function scoreSuper(deadEnd) {
 
 function redRoomValid(x, y, fromUltraDir) {
   if (!inBounds(x, y) || isRoom(getCell(x, y))) return false;
+  if (blockedByAnyRoomWall(x, y)) return false;
   const adj = adjacentRooms(x, y, (cell, dir) => {
     if (dir.key === fromUltraDir.opposite) return false;
     if (document.getElementById("voidMode").checked && cell.type === "boss") return true;
@@ -337,7 +368,7 @@ function redRoomValid(x, y, fromUltraDir) {
 
 function scoreUltra(x, y) {
   if (isRoom(getCell(x, y))) return null;
-  if (adjacentRooms(x, y).length > 0) return null;
+  if (touchesAnyRoom(x, y)) return null;
 
   const links = [];
   const touchedRooms = new Set();
@@ -396,7 +427,11 @@ function analyze() {
   }
 
   const byMetric = (items) => items.sort((a, b) => b.sortValue - a.sortValue);
-  renderResults({ secret: byMetric(secret), superSecret: byMetric(superSecret), ultra: byMetric(ultra) });
+  renderResults({
+    secret: byMetric(filterDominatedSecrets(secret)),
+    superSecret: byMetric(superSecret),
+    ultra: byMetric(ultra),
+  });
 }
 
 function renderResults(groups) {
@@ -404,7 +439,7 @@ function renderResults(groups) {
   resultLists.innerHTML = "";
   const compactMode = document.getElementById("compactMode").checked;
   const config = [
-    ["secret", "隐藏房官方权重范围", "secret"],
+    ["secret", "隐藏房可能胜出的权重范围", "secret"],
     ["superSecret", "超隐死路排序", "super"],
     ["ultra", "红隐连接级别", "ultra"],
   ];
@@ -436,7 +471,7 @@ function renderResults(groups) {
   summary.textContent = total
     ? compactMode
       ? `已找到 ${total} 个候选位置。`
-      : `已按游戏生成口径标出 ${total} 个指标：W=隐藏房权重范围，D/#=超隐死路距离/死路序号，R=红隐可连接房间数。`
+      : `已按游戏生成口径标出 ${total} 个指标：W=隐藏房仍可能胜出的权重范围，D/#=超隐死路距离/死路序号，R=红隐可连接房间数。`
     : "当前地图没有可用候选点。";
   renderGrid();
 }
