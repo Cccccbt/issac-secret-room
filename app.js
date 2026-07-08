@@ -366,9 +366,18 @@ function redRoomValid(x, y, fromUltraDir) {
   return adj.length > 0;
 }
 
+function touchesBlockedRedRoomSlot(x, y) {
+  return dirs.some((dir) => {
+    const rx = x + dir.dx;
+    const ry = y + dir.dy;
+    return inBounds(rx, ry) && !isRoom(getCell(rx, ry)) && blockedByAnyRoomWall(rx, ry);
+  });
+}
+
 function scoreUltra(x, y) {
   if (isRoom(getCell(x, y))) return null;
   if (touchesAnyRoom(x, y)) return null;
+  if (touchesBlockedRedRoomSlot(x, y)) return null;
 
   const links = [];
   const touchedRooms = new Set();
