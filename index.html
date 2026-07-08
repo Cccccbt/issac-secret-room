@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>以撒隐藏房判断工具</title>
-  <link rel="stylesheet" href="styles.css?v=20260708-one-shot-room">
+  <link rel="stylesheet" href="styles.css?v=20260708-wall-room-only">
 </head>
 <body>
   <main class="app">
@@ -42,8 +42,8 @@
           <button class="wall-tool wall-bottom" data-wall="bottom">下</button>
           <button class="wall-tool wall-left" data-wall="left">左</button>
         </div>
-        <button id="clearWallSelectionBtn" class="wide">取消堵墙选择</button>
-        <p class="hint">窄房、小房、无门边、障碍边都用堵墙表示。堵墙方向可多选。</p>
+        <button id="clearWallSelectionBtn" class="wide">取消堵墙工具</button>
+        <p class="hint">窄房、小房、无门边、障碍边都用堵墙表示。堵墙方向可多选；已选网格时点方向会批量切换，未选网格时点格子后自动取消工具。</p>
       </section>
 
       <section>
@@ -89,6 +89,6 @@
     </article>
   </template>
 
-  <script src="app.js?v=20260708-one-shot-room"></script>
+  <script src="app.js?v=20260708-wall-room-only"></script>
 </body>
 </html>

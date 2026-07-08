@@ -508,6 +508,13 @@ function renderGrid() {
         for (const wall of data.walls) {
           const mark = document.createElement("span");
           mark.className = `wall ${wall}`;
+          mark.addEventListener("click", (event) => {
+            event.stopPropagation();
+            pushHistory();
+            data.walls.delete(wall);
+            markDirty();
+            renderGrid();
+          });
           el.appendChild(mark);
         }
       }
@@ -553,6 +560,37 @@ function addFusionEdgeClasses(el, x, y, cell) {
   }
 }
 
+function wallNearPointer(event, cellEl) {
+  const directWall = [...event.target.classList || []].find((name) => ["top", "right", "bottom", "left"].includes(name));
+  if (directWall) return directWall;
+  const rect = cellEl.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const distances = [
+    { wall: "top", value: y },
+    { wall: "right", value: rect.width - x },
+    { wall: "bottom", value: rect.height - y },
+    { wall: "left", value: x },
+  ].sort((a, b) => a.value - b.value);
+  return distances[0].value <= Math.min(rect.width, rect.height) * 0.28 ? distances[0].wall : null;
+}
+
+function removeWallFromContext(event) {
+  const cellEl = event.target.closest(".cell");
+  if (!cellEl) return false;
+  const x = Number(cellEl.dataset.x);
+  const y = Number(cellEl.dataset.y);
+  const cell = getCell(x, y);
+  if (!cell) return false;
+  const wall = wallNearPointer(event, cellEl);
+  if (!wall || !cell.walls.has(wall)) return false;
+  pushHistory();
+  cell.walls.delete(wall);
+  markDirty();
+  renderGrid();
+  return true;
+}
+
 function markDirty() {
   state.candidates.clear();
   summary.textContent = "地图已修改，点击“确认并分析”刷新生成指标。";
@@ -573,6 +611,28 @@ function applyRoomToSelectedCells(type) {
     if (type === null) {
       cell.walls.clear();
       state.fusionSelection.delete(key);
+    }
+  }
+  state.selectedCells.clear();
+  markDirty();
+  renderGrid();
+  return true;
+}
+
+function applyWallsToSelectedCells(walls) {
+  if (!state.selectedCells.size) return false;
+  const roomKeys = [...state.selectedCells].filter((key) => isRoom(state.cells.get(key)));
+  if (!roomKeys.length) {
+    summary.textContent = "堵墙只能添加到已有房间上。";
+    return true;
+  }
+  pushHistory();
+  for (const key of roomKeys) {
+    const [x, y] = parseKey(key);
+    const cell = ensureCell(x, y);
+    for (const wall of walls) {
+      if (cell.walls.has(wall)) cell.walls.delete(wall);
+      else cell.walls.add(wall);
     }
   }
   state.selectedCells.clear();
@@ -737,16 +797,23 @@ function onCellClick(event) {
     return;
   }
 
-  pushHistory();
-  markDirty();
   if (state.selectedWalls.size) {
+    if (!isRoom(cell)) {
+      summary.textContent = "堵墙只能添加到已有房间上。";
+      return;
+    }
+    pushHistory();
+    markDirty();
     for (const wall of state.selectedWalls) {
       if (cell.walls.has(wall)) cell.walls.delete(wall);
       else cell.walls.add(wall);
     }
+    state.selectedWalls.clear();
   } else if (isRoom(cell) && state.selectedRoom !== null && !state.eraseMode) {
     toggleFusionCell(x, y);
   } else {
+    pushHistory();
+    markDirty();
     const usedRoomType = state.selectedRoom;
     if (state.selectedRoom === "start") {
       clearExistingStart();
@@ -822,6 +889,12 @@ function selectRoom(type) {
 }
 
 function toggleWall(wall) {
+  if (applyWallsToSelectedCells([wall])) {
+    state.selectedWalls.clear();
+    state.selectionMode = false;
+    syncTools();
+    return;
+  }
   state.selectionMode = false;
   state.eraseMode = false;
   if (state.selectedWalls.has(wall)) state.selectedWalls.delete(wall);
@@ -864,6 +937,7 @@ function setupTools() {
   });
   grid.addEventListener("contextmenu", (event) => {
     event.preventDefault();
+    if (removeWallFromContext(event)) return;
     state.selectedCells.clear();
     state.fusionSelection.clear();
     updateFusionSelectionInfo();
